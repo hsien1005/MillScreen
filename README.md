@@ -1,6 +1,6 @@
 # MillScreen: Paper Mills Are Not Outliers
+NYCU Data Mining 2026, HW2 (Anomaly Detection).
 
-這個 repo 包含資料建構、三個 Tier 的模型、ablation、錯誤分析和修正的完整程式碼，以及所有實驗結果。照下面的步驟可以從零重跑出報告裡的每一個數字。
 
 - 主要發現：
   - **論文工廠不是離群點**，而是彼此很像的密集群聚，所以 one-class 方法全部接近隨機。
