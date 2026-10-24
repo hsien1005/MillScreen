@@ -1,0 +1,16 @@
+,field,proportion
+FN,Medicine,0.2562988705473501
+FN,Computer Science,0.2519548218940052
+FN,Engineering,0.12945264986967853
+FN,Social Sciences,0.052997393570807995
+FN,"Biochemistry, Genetics and Molecular Biology",0.04778453518679409
+TP,Computer Science,0.35074626865671643
+TP,Decision Sciences,0.20149253731343283
+TP,"Biochemistry, Genetics and Molecular Biology",0.11940298507462686
+TP,Medicine,0.08208955223880597
+TP,Social Sciences,0.06716417910447761
+FP,Computer Science,0.38262322472848787
+FP,Decision Sciences,0.3241436925647452
+FP,"Biochemistry, Genetics and Molecular Biology",0.12197159565580618
+FP,Medicine,0.11278195488721804
+FP,Engineering,0.05847953216374269
