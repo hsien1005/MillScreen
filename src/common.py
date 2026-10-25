@@ -1,6 +1,7 @@
 """Shared helpers: paths, OpenAlex fetching with an on-disk cache, text utilities."""
 import hashlib
 import json
+import os
 import re
 import time
 import urllib.error
@@ -18,6 +19,10 @@ for d in (CACHE, PROC, RESULTS, FIGS):
     d.mkdir(parents=True, exist_ok=True)
 
 OPENALEX = "https://api.openalex.org/works"
+# Optional free API key (https://openalex.org/signup): 10x the keyless daily budget. It is sent as a header,
+# so it never enters a URL or a cache file name, and cached responses stay valid with or without it.
+API_KEY = os.environ.get("OPENALEX_API_KEY", "")
+HEADERS = {"User-Agent": "nycu-dm-hw2", **({"Authorization": f"Bearer {API_KEY}"} if API_KEY else {})}
 SELECT = "id,doi,title,publication_year,type,primary_topic,primary_location,authorships,is_retracted,abstract_inverted_index"
 
 
@@ -30,7 +35,7 @@ def fetch(params: dict) -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
     for attempt in range(8):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "nycu-dm-hw2"})
+            req = urllib.request.Request(url, headers=HEADERS)
             with urllib.request.urlopen(req, timeout=90) as f:
                 data = json.load(f)
             path.write_text(json.dumps(data), encoding="utf-8")
@@ -53,7 +58,7 @@ def fetch_doi(doi: str) -> dict | None:
         return data or None
     for attempt in range(8):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "nycu-dm-hw2"})
+            req = urllib.request.Request(url, headers=HEADERS)
             with urllib.request.urlopen(req, timeout=90) as f:
                 data = json.load(f)
             path.write_text(json.dumps(data), encoding="utf-8")

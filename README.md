@@ -64,7 +64,7 @@ pip install -r requirements.txt
 | [OpenAlex API](https://openalex.org)（CC0） | 摘要、正常論文抽樣、出版社 / 國家 / topic | 腳本會自動抓，不需要帳號 |
 
 ⚠ OpenAlex 的資料和使用限制：
-- **不帶 API key 時每天只有 1,000 個請求**（2026-10 起，`x-ratelimit-limit: 1000`），超過會回 429，隔天才重置。步驟 1 約 114 個請求、步驟 2 約 382 個、步驟 3b 約 600 個。每個回應都存在 `data/cache/`，重跑不會再花額度。
+- **不帶 API key 時每天只有 1,000 個請求**（2026-10 起），超過會回 429，隔天才重置。步驟 1 約 114 個請求、步驟 2 約 382 個、步驟 3b 約 600 個，所以建議到 [openalex.org/signup](https://openalex.org/signup) 申請**免費 API key**（每天 10,000 個請求），再設成環境變數：`export OPENALEX_API_KEY=你的key`（PowerShell：`$env:OPENALEX_API_KEY="你的key"`）。key 只放在請求標頭，不會進網址或快取檔名；不要把 key commit 進 repo。每個回應都存在 `data/cache/`，重跑不會再花額度。
 - **OpenAlex 一直在更新**，所以步驟 2 用同一個 seed 重新抽樣，抽到的正常論文已經不完全一樣（2026-10-25 重抽得到 59,944 篇，不是 59,898 篇）。要重現 `results/`，請用**步驟 3b**：它照 `data/processed/normals_openalex_ids.csv` 記錄的 OpenAlex 作品 ID，把切分檔裡同一批正常論文抓回來，切分檔保持不變。用 ID 而不用 DOI，是因為有些 DOI 在 OpenAlex 對應到好幾筆作品（例如整本會議摘要集共用一個 DOI），有些 DOI 還含有 `|`、`,` 這類會破壞查詢條件的字元。
 - 少數論文的內容也會變：重抓時有 75 篇正常論文的摘要已被 OpenAlex 移除（變成空的），另有十幾篇論文工廠的標題新加上了撤稿標記。這只讓 EDA 的數字在小數第 3 位後有差異。
 
