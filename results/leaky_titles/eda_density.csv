@@ -1,8 +1,8 @@
 ,0
-pairwise_sim_normal,0.08929929882287979
-pairwise_sim_mill,0.28210556507110596
-knn10_dist_to_normals_normal_LOO,0.4346036911010742
-knn10_dist_to_normals_mill,0.3910849690437317
-knn10_dist_to_mills_normal,0.6521509289741516
-knn10_dist_to_mills_mill_LOO,0.34851741790771484
-roc_auc_dist_to_normals_train,0.3224485074943139
+pairwise_sim_normal,0.08913979679346085
+pairwise_sim_mill,0.28210678696632385
+knn10_dist_to_normals_normal_LOO,0.434682697057724
+knn10_dist_to_normals_mill,0.39111825823783875
+knn10_dist_to_mills_normal,0.652214765548706
+knn10_dist_to_mills_mill_LOO,0.34851592779159546
+roc_auc_dist_to_normals_train,0.32228203095201097

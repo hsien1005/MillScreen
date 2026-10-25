@@ -9,8 +9,8 @@ TP,Decision Sciences,0.20149253731343283
 TP,"Biochemistry, Genetics and Molecular Biology",0.11940298507462686
 TP,Medicine,0.08208955223880597
 TP,Social Sciences,0.06716417910447761
-FP,Computer Science,0.38262322472848787
-FP,Decision Sciences,0.3241436925647452
-FP,"Biochemistry, Genetics and Molecular Biology",0.12197159565580618
-FP,Medicine,0.11278195488721804
-FP,Engineering,0.05847953216374269
+FP,Computer Science,0.3823038397328882
+FP,Decision Sciences,0.32387312186978295
+FP,"Biochemistry, Genetics and Molecular Biology",0.12270450751252086
+FP,Medicine,0.11268781302170283
+FP,Engineering,0.05843071786310518
