@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -27,7 +28,7 @@ def fetch(params: dict) -> dict:
     path = CACHE / f"{key}.json"
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
-    for attempt in range(4):
+    for attempt in range(8):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "nycu-dm-hw2"})
             with urllib.request.urlopen(req, timeout=90) as f:
@@ -36,9 +37,35 @@ def fetch(params: dict) -> dict:
             time.sleep(0.12)
             return data
         except Exception as e:  # network hiccup or 429
-            if attempt == 3:
+            if attempt == 7:
                 raise
-            time.sleep(5 * (attempt + 1))
+            time.sleep(5 * 2 ** min(attempt, 5))  # back off longer on 429 (rate limit)
+            print("retry", attempt, e)
+
+
+def fetch_doi(doi: str) -> dict | None:
+    """GET one work by DOI (for DOIs whose characters, such as '|' or ',', break the OR-ed doi filter).
+    Cached like fetch(); returns None when OpenAlex has no record."""
+    url = OPENALEX + "/doi:" + urllib.parse.quote(doi, safe="") + "?select=" + SELECT
+    path = CACHE / f"{hashlib.sha1(url.encode()).hexdigest()}.json"
+    if path.exists():
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data or None
+    for attempt in range(8):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "nycu-dm-hw2"})
+            with urllib.request.urlopen(req, timeout=90) as f:
+                data = json.load(f)
+            path.write_text(json.dumps(data), encoding="utf-8")
+            time.sleep(0.12)
+            return data
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                path.write_text("{}", encoding="utf-8")
+                return None
+            if attempt == 7:
+                raise
+            time.sleep(5 * 2 ** min(attempt, 5))
             print("retry", attempt, e)
 
 
@@ -113,3 +140,9 @@ def clean_titles(titles):
 
 def n_words(text: str) -> int:
     return len((text or "").split())
+
+
+def type_token_ratio(text: str) -> float:
+    """Distinct words / words of an abstract (0 for an empty abstract)."""
+    w = (text or "").lower().split()
+    return len(set(w)) / max(1, len(w))

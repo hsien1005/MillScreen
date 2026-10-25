@@ -9,13 +9,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import mannwhitneyu
+from scipy.stats import mannwhitneyu, ttest_rel
 from sentence_transformers import SentenceTransformer, models
 from sklearn.metrics import average_precision_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.common import PROC, RESULTS
-from src.methods import knn_score, load_docs, load_split, metrics, millscreen_score, tau_budget
+from src.methods import journal_bootstrap_gaps, knn_score, load_docs, load_split, metrics, millscreen_score, tau_budget
 
 SEEDS = range(5)
 LR = sys.argv[1] if len(sys.argv) > 1 else "2e-05"
@@ -119,19 +119,24 @@ print("\nInterpretability:", report["interpret"])
 print(loo.sort_values("score_drop", ascending=False).round(4).to_string())
 
 # ---------- practical impact & Hindawi slice (5 seeds) ----------
+SLICE_METHODS = {"T1 Tortured phrases": "tortured_temporal_seed{s}.npz",
+                 "T1 Type-token ratio": "ttr_temporal_seed{s}.npz",
+                 "T2 MillScreen": "millscreen_temporal_seed{s}.npz",
+                 "T3 LR (same embeddings)": f"lr_{cfg['encoder']}_temporal_seed" + "{s}.npz",
+                 "T3 SciBERT": f"scibert_temporal_seed" + "{s}" + f"_lr{float(LR):g}.npz"}
 imp = []
 for s in SEEDS:
     p = load_split(docs, "temporal", s)
     idx, y = p["test"]
     hind = docs.publisher.fillna("").str.contains("Hindawi").to_numpy()[idx]
-    for name, fn in (("T1 Tortured phrases", f"tortured_temporal_seed{s}.npz"),
-                     ("T2 MillScreen", f"millscreen_temporal_seed{s}.npz"),
-                     ("T3 SciBERT", f"scibert_temporal_seed{s}_lr{float(LR):g}.npz")):
+    for name, fn in SLICE_METHODS.items():
+        fn = fn.format(s=s)
         z = np.load(sc / fn)
         m = metrics(y, z["test"], tau_budget(z["val"]))
         hm = {"hindawi_pr_auc": average_precision_score(y[hind], z["test"][hind]) if y[hind].sum() else np.nan,
               "hindawi_n": int(hind.sum()), "hindawi_mills": int(y[hind].sum()),
-              "non_hindawi_pr_auc": average_precision_score(y[~hind], z["test"][~hind])}
+              "non_hindawi_pr_auc": average_precision_score(y[~hind], z["test"][~hind]),
+              "hindawi_random_pr_auc": float(y[hind].mean()), "non_hindawi_random_pr_auc": float(y[~hind].mean())}
         # per 1,000 submissions with 1% prevalence (10 mills) and 20 deep reviews
         imp.append({"method": name, "seed": s, "mills_caught_per_1000": 10 * m["recall_at_tau"],
                     "real_mills_among_reviews": m["tp"] / max(1, m["tp"] + m["fp"]) * 1000 * m["flag_rate"],
@@ -139,5 +144,29 @@ for s in SEEDS:
 imp = pd.DataFrame(imp)
 imp.to_csv(RESULTS / "impact_per_seed.csv", index=False)
 print(imp.groupby("method").agg(["mean", "std"]).round(3).T.to_string())
+
+# Is MillScreen's PR-AUC different from each other method's inside each slice? (paired t over seeds,
+# journal-clustered bootstrap CI as in 06c)
+journals = docs.journal.fillna("NA").to_numpy()
+hindawi_all = docs.publisher.fillna("").str.contains("Hindawi").to_numpy()
+sl = []
+for other in ("T3 LR (same embeddings)", "T3 SciBERT", "T1 Type-token ratio"):
+    for name, keep in (("all", lambda h: np.ones(len(h), bool)), ("non-Hindawi", lambda h: ~h), ("Hindawi", lambda h: h)):
+        rng = np.random.default_rng(0)
+        a_ap, b_ap, diffs = [], [], []
+        for s in SEEDS:
+            idx, y = load_split(docs, "temporal", s)["test"]
+            m = keep(hindawi_all[idx])
+            a = np.load(sc / SLICE_METHODS["T2 MillScreen"].format(s=s))["test"][m]
+            b = np.load(sc / SLICE_METHODS[other].format(s=s))["test"][m]
+            a_ap.append(average_precision_score(y[m], a))
+            b_ap.append(average_precision_score(y[m], b))
+            diffs += journal_bootstrap_gaps(y[m], a, b, journals[idx][m], rng)
+        lo, hi = np.percentile(diffs, [2.5, 97.5])
+        sl.append({"compare": f"T2 MillScreen - {other}", "slice": name, "millscreen": np.mean(a_ap), "other": np.mean(b_ap),
+                   "diff": np.mean(np.subtract(a_ap, b_ap)), "paired_t_p": ttest_rel(a_ap, b_ap).pvalue, "ci_lo": lo, "ci_hi": hi})
+sl = pd.DataFrame(sl)
+sl.to_csv(RESULTS / "slice_significance.csv", index=False)
+print(sl.round(4).to_string())
 
 (RESULTS / "analysis_report.json").write_text(json.dumps(report, indent=1, default=str))

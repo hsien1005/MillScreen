@@ -80,7 +80,10 @@ def predict(idx):
 val_s = predict(sp["val"][0])
 from sklearn.metrics import average_precision_score
 if TUNE:
-    print("TUNE", kind, seed, lr, "val AP", round(average_precision_score(sp["val"][1], val_s), 4), f"train {train_sec:.0f}s")
+    ap = average_precision_score(sp["val"][1], val_s)
+    print("TUNE", kind, seed, lr, "val AP", round(ap, 4), f"train {train_sec:.0f}s")
+    with open(RESULTS / "scibert_tune_val.csv", "a") as f:  # one row per tuning run; pick the lr with the best val AP
+        f.write(f"{kind},{seed},{lr:g},{ap:.6f}\n")
     sys.exit()
 t1 = time.time()
 test_full = predict(sp["test_full"][0])

@@ -4,7 +4,8 @@ A1 split protocol (temporal vs random)        - T2 and T3
 A2 scoring function                           - same embeddings: one-class (kNN / Mahalanobis / IF) vs
                                                 mill-proximity vs MillScreen (both terms)
 A3 normal-reference contamination (0/1/5 %)   - unlabeled train-era mills mixed into the normal set
-A6 label budget (25 / 100 / 400 / all known mills in the mill reference)
+A6 label budget (25 / 100 / 400 / all known mills in the mill reference; the same subsets also train the
+                                                same-encoder logistic regression, C chosen on val)
 A4 metadata shortcut                          - supervised LR on text vs text + publisher/country
 A5 threshold rule (budget / best-F1 / 3-sigma)
 R  test anomaly ratio (0.5 / 1 / 5 %)
@@ -20,7 +21,7 @@ from sklearn.metrics import average_precision_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.common import PROC, RESULTS
-from src.methods import (iforest_score, knn_score, load_docs, load_split, mahalanobis_score, metrics,
+from src.methods import (fit_lr, iforest_score, knn_score, load_docs, load_split, mahalanobis_score, metrics,
                          millscreen_score, subset_ratio, tau_best_f1, tau_budget)
 
 SEEDS = range(5)
@@ -79,6 +80,8 @@ for s in SEEDS:
         mb = E[rng.choice(t["train_anomaly"], nb, replace=False)]
         kk = min(K, nb)
         add("A6 label budget", f"{nb} known mills", "T2", s, ty, millscreen_score(tr, mb, E[ti], kk), millscreen_score(tr, mb, E[vi], kk))
+        lr, _ = fit_lr(np.r_[tr, mb], np.r_[np.zeros(len(tr)), np.ones(nb)], E[vi], vy)
+        add("A6 label budget", f"{nb} known mills", "T3 LR (same embeddings)", s, ty, lr.decision_function(E[ti]), lr.decision_function(E[vi]))
 
     # A4 metadata shortcut (supervised logistic regression)
     meta = np.c_[docs.publisher.fillna("").str.contains("Hindawi").to_numpy(),

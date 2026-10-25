@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 from sklearn.covariance import LedoitWolf
 from sklearn.ensemble import IsolationForest
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 
 from src.common import PROC, n_words, tortured_hits
@@ -95,6 +96,21 @@ def iforest_score(train_emb, query_emb, seed=0):
     return -f.score_samples(query_emb)
 
 
+# ---------- Tier 3 reference on the same frozen embeddings ----------
+LR_CS = (0.01, 0.1, 1.0, 10.0)
+
+
+def fit_lr(X_train, y_train, X_val, y_val, cs=LR_CS):
+    """Class-weighted logistic regression; C is chosen on validation PR-AUC. Returns (model, C)."""
+    best = None
+    for c in cs:
+        m = LogisticRegression(C=c, max_iter=3000, class_weight="balanced").fit(X_train, y_train)
+        ap = average_precision_score(y_val, m.decision_function(X_val))
+        if best is None or ap > best[0]:
+            best = (ap, c, m)
+    return best[2], best[1]
+
+
 # ---------- thresholds & metrics ----------
 def tau_budget(val_scores, budget=BUDGET):
     return float(np.quantile(val_scores, 1 - budget))
@@ -109,6 +125,24 @@ def tau_best_f1(val_scores, val_y):
         if f1 > best:
             best, tau = f1, float(t)
     return tau
+
+
+def journal_bootstrap_gaps(y, a, b, journals, rng, n=400):
+    """PR-AUC gap a - b on n resamples of whole journals (papers in one journal are not independent)."""
+    groups = pd.Series(np.arange(len(y))).groupby(journals).apply(np.array).tolist()
+    out = []
+    for _ in range(n):
+        pick = np.concatenate([groups[g] for g in rng.integers(0, len(groups), len(groups))])
+        if y[pick].sum() == 0:
+            continue
+        out.append(average_precision_score(y[pick], a[pick]) - average_precision_score(y[pick], b[pick]))
+    return out
+
+
+def recall_at_rate(y, s, rate):
+    """Recall when exactly the top `rate` share of papers is flagged (equal review load across methods)."""
+    k = int(round(rate * len(s)))
+    return float(y[np.argsort(-s)[:k]].sum() / max(1, y.sum()))
 
 
 def metrics(y, s, tau):

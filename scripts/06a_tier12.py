@@ -1,8 +1,11 @@
-"""Tier 1 (tortured phrases, always-normal) and Tier 2 (MillScreen), plus the normal-only kNN variant.
+"""Tier 1 (tortured phrases, type-token ratio, always-normal), Tier 2 (MillScreen) with the normal-only kNN
+variant, and the same-encoder Tier 3 reference (logistic regression on the frozen embeddings).
 
 MillScreen (Tier 2): s(x) = d_k(x, train normals) - d_k(x, train-era known mills), frozen embeddings.
 One-class kNN (planned design, kept as a reported variant): s(x) = d_k(x, train normals).
-Model selection (encoder, k) uses validation PR-AUC only; the test set is scored once afterwards.
+Type-token ratio (Tier 1): single-feature threshold, lower ratio = more suspicious (direction from EDA on train).
+LR on embeddings (Tier 3, same encoder as MillScreen): class-weighted logistic regression, C chosen on validation.
+Model selection (encoder, k, C) uses validation PR-AUC only; the test set is scored once afterwards.
 """
 import json
 import sys
@@ -14,8 +17,8 @@ import pandas as pd
 from sklearn.metrics import average_precision_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.common import PROC, RESULTS
-from src.methods import knn_score, knn_score_multi_k, load_docs, load_split
+from src.common import PROC, RESULTS, type_token_ratio
+from src.methods import fit_lr, knn_score, knn_score_multi_k, load_docs, load_split
 
 SEEDS, KS, ENCS = range(5), [1, 5, 10, 20, 50], ["minilm", "specter2"]
 docs = load_docs()
@@ -67,6 +70,27 @@ for s in SEEDS:
         knn_ms = 1000 * (time.time() - t1) / len(ti)
         np.savez(out / f"{v}_temporal_seed{s}.npz", val=val, test=test_full[:n_test], test_full=test_full,
                  train_sec=0.0, ms_per_doc=enc_ms + knn_ms)
+    # Tier 3 reference on the MillScreen encoder: same inputs, supervised instead of nearest neighbours
+    c = cfgs["millscreen"]
+    E = embs[c["encoder"]]
+    enc_ms = float((PROC / f"emb_{c['encoder']}_ms_per_doc.txt").read_text())
+    vy = sp["val"][1]
+    X = E[np.r_[sp["train_normal"], sp["train_anomaly"]]]
+    y = np.r_[np.zeros(len(sp["train_normal"])), np.ones(len(sp["train_anomaly"]))]
+    t0 = time.time()
+    lr, C = fit_lr(X, y, E[vi], vy)
+    lr_train = (time.time() - t0) / 4  # four C values are fitted; report the cost of one fit
+    t1 = time.time()
+    test_full = lr.decision_function(E[ti])
+    lr_ms = 1000 * (time.time() - t1) / len(ti)
+    np.savez(out / f"lr_{c['encoder']}_temporal_seed{s}.npz", val=lr.decision_function(E[vi]), test=test_full[:n_test],
+             test_full=test_full, train_sec=lr_train, ms_per_doc=enc_ms + lr_ms, C=C)
+
+    t1 = time.time()
+    ttr = -docs.abstract.map(type_token_ratio).to_numpy()
+    ttr_ms = 1000 * (time.time() - t1) / len(docs)
+    np.savez(out / f"ttr_temporal_seed{s}.npz", val=ttr[vi], test=ttr[ti][:n_test], test_full=ttr[ti],
+             train_sec=0.0, ms_per_doc=ttr_ms)
     tp = docs.tp_rate.to_numpy()
     np.savez(out / f"tortured_temporal_seed{s}.npz", val=tp[vi], test=tp[ti][:n_test], test_full=tp[ti],
              train_sec=0.0, ms_per_doc=0.0)

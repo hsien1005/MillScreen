@@ -18,7 +18,7 @@ from sklearn.manifold import TSNE
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.common import FIGS, RESULTS
 from src.methods import load_docs, load_split
-from src.common import PROC
+from src.common import PROC, type_token_ratio
 
 ENC = sys.argv[1] if len(sys.argv) > 1 else "minilm"
 docs = load_docs()
@@ -33,8 +33,8 @@ et, ea = np.load(PROC / f"emb_{ENC}_title.npy"), np.load(PROC / f"emb_{ENC}_abst
 d["ta_sim"] = (et[idx] * ea[idx]).sum(1)
 words = d.abstract.str.split()
 d["n_words"] = words.str.len()
-d["ttr"] = words.map(lambda w: len(set(x.lower() for x in w)) / len(w))
-d["sent_len"] = d.abstract.map(lambda s: np.mean([len(x.split()) for x in s.split(". ") if x.strip()]))
+d["ttr"] = d.abstract.map(type_token_ratio)
+d["sent_len"] = d.abstract.map(lambda s: np.mean([len(x.split()) for x in s.split(". ") if x.strip()] or [0]))
 d["has_tp"] = (d.tp_rate > 0).astype(int)
 
 feats = ["tp_rate", "has_tp", "ta_sim", "n_words", "ttr", "sent_len"]
