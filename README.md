@@ -98,9 +98,9 @@ pip install -r requirements.txt
 python scripts/06b_scibert.py temporal 0 2e-5 --tune
 python scripts/06b_scibert.py temporal 0 5e-5 --tune
 
-# 正式訓練：temporal 5 seeds（主結果）+ random 3 seeds（只給 A1 用）
+# 正式訓練：temporal 5 seeds（主結果）+ random 5 seeds（只給 A1 用）
 for s in 0 1 2 3 4; do python scripts/06b_scibert.py temporal $s 2e-5; done
-for s in 0 1 2;     do python scripts/06b_scibert.py random   $s 2e-5; done
+for s in 0 1 2 3 4; do python scripts/06b_scibert.py random   $s 2e-5; done
 ```
 
 一次跑完全部（約 1.5 小時，其中 SciBERT 約 1 小時）：
@@ -112,7 +112,7 @@ python scripts/01_build_anomalies.py && python scripts/03b_rebuild_from_splits.p
 python scripts/04_embed.py minilm && python scripts/04_embed.py specter2
 python scripts/05_eda.py minilm && python scripts/06a_tier12.py
 for s in 0 1 2 3 4; do python scripts/06b_scibert.py temporal $s 2e-5; done
-for s in 0 1 2;     do python scripts/06b_scibert.py random   $s 2e-5; done
+for s in 0 1 2 3 4; do python scripts/06b_scibert.py random   $s 2e-5; done
 for x in 06c_main_table 07_ablations 08_analysis 08b_topic_check; do python scripts/$x.py 2e-05; done
 python scripts/09_fix.py
 ```
@@ -189,12 +189,12 @@ python scripts/09_fix.py
 |---|---|---|
 | MillScreen | 0.049 → 0.050 | 0.182 → 0.181 |
 | LR（同 embedding） | 0.051 → 0.047 | |
-| SciBERT | 0.427 → **0.119** | 0.715 → **0.418** |
+| SciBERT | 0.427 → **0.119** | 0.715 → **0.416** |
 
 ### Ablation（test PR-AUC）
 | # | 改什麼 | 結果 |
 |---|---|---|
-| A1 | 隨機切 → 時間切 | MillScreen 0.181 → 0.050（−72%）；SciBERT 0.418 → 0.119（−72%） |
+| A1 | 隨機切 → 時間切 | MillScreen 0.181 → 0.050（−72%）；SciBERT 0.416 → 0.119（−71%） |
 | A2 | 異常分數算法 | MillScreen 0.050；只看離已知造假多近 0.030；one-class kNN 0.011；Mahalanobis 0.011；Isolation Forest 0.011 |
 | A3 | 正常參考混入 0 / 1 / 3% 造假 | 0.047 / 0.044 / 0.043 |
 | A4 | 加入出版社 / 國家（logistic regression） | 時間切 0.047 → 0.145；隨機切 0.161 → 0.478 |
