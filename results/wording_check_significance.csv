@@ -1,0 +1,5 @@
+compare,diff,paired_t_p
+"n-grams, title + abstract - MillScreen",0.05390230371114814,0.001966581021533622
+"n-grams, title + abstract - SciBERT",-0.015373892357890828,0.07905332502817626
+"n-grams, title + abstract - n-grams, first two sentences",0.04529641715661451,0.005147337486404744
+"n-grams, title + abstract - n-grams, rest of abstract",0.03658357112044054,0.0026404299917145925
