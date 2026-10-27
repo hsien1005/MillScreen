@@ -1,0 +1,6 @@
+{
+ "test_flag_rate_mean": 0.010382321992283408,
+ "test_flag_rate_std": 0.0013958532075726924,
+ "flags_pooled": 1332,
+ "precision_all_flags": 0.1006006006006006
+}

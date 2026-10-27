@@ -91,6 +91,7 @@ pip install -r requirements.txt
 | 8b | `python scripts/08b_topic_check.py 2e-05` | 混淆檢查：同一個 OpenAlex topic 內部的 ROC-AUC | `topic_check_per_seed.csv` | < 1 分鐘（讀快取） |
 | 9 | `python scripts/09_fix.py` | 修正：長摘要分段編碼，只在 val 上選合併方式，test 只跑一次；另外在相同送審比例下比較召回率 | `fix_per_seed.csv`、`fix_equal_rate.csv`、`scores/millscreen_chunkmax_*.npz` | 約 5 分鐘 |
 | 10 | `python scripts/10_wording_check.py 2e-05` | SciBERT 為什麼贏：同樣的切分上，用標題 + 摘要的 word 1–3-gram（TF-IDF）做 logistic regression，並和只用前兩句、只用其餘部分比較 | `wording_check_per_seed.csv`、`wording_check_significance.csv`、`wording_check_top_ngrams.csv` | 約 5 分鐘 |
+| 11 | `python scripts/11_flag_confidence.py` | 旗標可信度：把 MillScreen 的旗標依 s(x)−τ、依最像的已知造假相似度各分三等份，看各組的 precision；並報告 test 實際送審比例 | `flag_confidence.csv`、`flag_confidence_summary.json` | 約 10 分鐘 |
 
 步驟 6b（SciBERT）：學習率在 val 上選定為 2e-5，正式結果都用這個值。
 
@@ -117,6 +118,7 @@ for s in 0 1 2 3 4; do python scripts/06b_scibert.py random   $s 2e-5; done
 for x in 06c_main_table 07_ablations 08_analysis 08b_topic_check; do python scripts/$x.py 2e-05; done
 python scripts/09_fix.py
 python scripts/10_wording_check.py 2e-05
+python scripts/11_flag_confidence.py
 ```
 
 重現 `results/leaky_titles/`（標題保留撤稿標記，其他設定完全相同，SciBERT 一樣用 2e-5）：在另一份 repo 副本裡跑 `03b_rebuild_from_splits.py --keep-markers`，接著跑 4、5、6a、6b（temporal 5 seeds、random 5 seeds）、6c、7、8、8b，再把產生的表格和 SciBERT 分數複製到 `results/leaky_titles/`。
@@ -212,6 +214,10 @@ python scripts/10_wording_check.py 2e-05
 - word 1–3-gram 的 logistic regression：PR-AUC 0.104 ± 0.025，和 SciBERT（0.119）沒有顯著差異（p = 0.08），比 MillScreen（0.050）高（p = 0.002）。
 - 所以 SciBERT 的優勢來自用詞：凍結的整篇摘要 embedding 會把這些字詞訊號平均掉。最像 paper mill 的 n-gram 混合了主題詞（apoptosis、intuitionistic fuzzy）和模板用語（this paper、in conclusion、moreover）。
 - 只用前兩句 0.059、只用其餘部分 0.067，都比全文低：訊號分散在整篇摘要。
+
+### 旗標可信度（`11_flag_confidence.py`）
+- test 實際送審比例 1.04%（val 設定 2%；第二波的分數分布和 2020 年不同）。
+- 被 flag 的論文裡，依 s(x)−τ 分三等份的 precision 是 9.2% / 8.6% / 12.4%，依最像的已知造假相似度分是 11.4% / 7.4% / 11.3%：每一份都大約是 1% 基準比例的 10 倍，所以整份旗標清單都值得深審。
 
 ### 混淆檢查（同 topic 內 ROC-AUC）
 MillScreen 0.761 → 0.672；SciBERT 0.878 → 0.686；one-class 0.577 → 0.526。兩個方法在同主題內都仍高於 0.5（但只有約 28 篇 paper mill 符合條件）。
